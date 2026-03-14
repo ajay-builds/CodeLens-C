@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lexical Analyzer - C and C++</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>CodeLens-C</h1>
+            <p class="subtitle">Analyze C and C++ Source Code</p>
+        </header>
+
+        <!-- Language Selection Panel -->
+        <div class="language-panel">
+            <h3>Select Language</h3>
+            <div class="language-buttons">
+                <button class="lang-btn active" data-lang="C">C</button>
+                <button class="lang-btn" data-lang="C++">C++</button>
+            </div>
+            <div class="selected-lang">
+                Selected: <span id="currentLang">C</span>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Left Panel - Code Input -->
+            <div class="panel code-panel">
+                <div class="panel-header">
+                    <h2>Source Code</h2>
+                    <div class="panel-actions">
+                        <button id="uploadBtn" class="btn btn-secondary">
+                            Upload File
+                        </button>
+                        <input type="file" id="fileInput" accept=".c,.cpp,.h,.hpp" style="display: none;">
+                        <button id="clearCodeBtn" class="btn btn-secondary">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="code-editor">
+                    <div class="line-numbers" id="lineNumbers">1</div>
+                    <textarea id="codeInput" placeholder="Paste your code here or upload a file..."></textarea>
+                </div>
+                <div class="panel-footer">
+                    <button id="analyzeBtn" class="btn btn-primary">
+                        Analyze Code
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Panel - Results -->
+            <div class="panel results-panel">
+                <div class="panel-header">
+                    <h2>Analysis Results</h2>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="summary">Summary</button>
+                    <button class="tab-btn" data-tab="preprocessing">Preprocessing</button>
+                    <button class="tab-btn" data-tab="tokens">Tokens</button>
+                    <button class="tab-btn" data-tab="dump">Dump Preview</button>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- Summary Tab -->
+                    <div id="summary-tab" class="tab-pane active">
+                        <div class="summary-content">
+                            <div id="summaryStats" class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="totalTokens">0</div>
+                                    <div class="stat-label">Total Tokens</div>
+                                </div>
+                            </div>
+                            <div id="tokenChart" class="chart-container"></div>
+                        </div>
+                    </div>
+
+                    <!-- Preprocessing Tab -->
+                    <div id="preprocessing-tab" class="tab-pane">
+                        <div class="preprocessing-content">
+                            <h3>Phase 1: Preprocessing</h3>
+                            <div class="preprocessed-code-section">
+                                <h4>Code(Without Comments & Preprocessor Directives):</h4>
+                                <pre id="preprocessedCode" class="code-display">No analysis performed yet</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tokens Tab -->
+                    <div id="tokens-tab" class="tab-pane">
+                        <div class="table-container">
+                            <table id="tokensTable">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Type</th>
+                                        <th>Lexeme</th>
+                                        <th>Line</th>
+                                        <th>Column</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tokensBody">
+                                    <tr>
+                                        <td colspan="5" class="no-data">
+                                            No analysis performed yet. Click "Analyze Code" to begin.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Dump Preview Tab -->
+                    <div id="dump-tab" class="tab-pane">
+                        <div class="dump-container">
+                            <pre id="dumpPreview">No analysis performed yet.</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span id="statusText">Ready</span>
+            <span id="analysisTime"></span>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Analyzing code...</p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
