@@ -3,16 +3,100 @@ import re
 
 app = Flask(__name__)
 
+class SymbolTable:
+    """Symbol Table with simple frequency-based usage counting"""
+    
+    def __init__(self):
+        self.symbols = []  # List of all symbol entries
+        self.scope_stack = ["global"]
+        self.scope_counter = 0
+    
+    def current_scope(self):
+        return self.scope_stack[-1]
+    
+    def enter_scope(self, scope_name=None):
+        """Enter a new scope"""
+        if scope_name is None:
+            self.scope_counter += 1
+            scope_name = f"block_{self.scope_counter}"
+        self.scope_stack.append(scope_name)
+    
+    def exit_scope(self):
+        """Exit current scope"""
+        if len(self.scope_stack) > 1:
+            self.scope_stack.pop()
+    
+    def add_symbol(self, name, category, line, data_type=None, initialized=False):
+        """Add a new symbol declaration"""
+        scope = self.current_scope()
+        
+        # Check if already declared in current scope
+        for entry in self.symbols:
+            if entry['name'] == name and entry['scope'] == scope:
+                return  # Already exists
+        
+        # Add new symbol
+        self.symbols.append({
+            'name': name,
+            'category': category,
+            'data_type': data_type,
+            'scope': scope,
+            'declared_line': line,
+            'initialized': initialized,
+            'usage_count': 0  # Will be calculated later
+        })
+    
+    def calculate_usage_counts(self, tokens):
+        """Calculate usage counts by counting frequency and subtracting 1"""
+        # Count frequency of each identifier in tokens
+        identifier_frequency = {}
+        
+        for token in tokens:
+            if token['type'] == 'IDENTIFIER':
+                name = token['value']
+                identifier_frequency[name] = identifier_frequency.get(name, 0) + 1
+        
+        # Update usage counts: frequency - 1 (subtract the declaration)
+        for symbol in self.symbols:
+            name = symbol['name']
+            if name in identifier_frequency:
+                # Frequency - 1 = usage count (minus the declaration itself)
+                symbol['usage_count'] = identifier_frequency[name] - 1
+            else:
+                symbol['usage_count'] = 0
+    
+    def get_all_symbols(self):
+        """Get all symbol entries sorted by line"""
+        return sorted(self.symbols, key=lambda x: x['declared_line'])
+    
+    def get_unused_symbols(self):
+        """Get symbols that were declared but never used"""
+        return [s for s in self.symbols if s['category'] == 'variable' and s['usage_count'] == 0]
+    
+    def get_statistics(self):
+        """Get symbol table statistics"""
+        variables = [s for s in self.symbols if s['category'] == 'variable']
+        functions = [s for s in self.symbols if s['category'] == 'function']
+        unused = [s for s in variables if s['usage_count'] == 0]
+        uninitialized = [s for s in variables if not s['initialized']]
+        
+        return {
+            'total_symbols': len(self.symbols),
+            'variables': len(variables),
+            'functions': len(functions),
+            'unused_variables': len(unused),
+            'uninitialized_variables': len(uninitialized)
+        }
+ 
+
 class LexicalAnalyzer:
     """Lexical Analyzer for C and C++"""
     
     def __init__(self, language):
         self.language = language
         self.tokens = []
-        self.original_code = ""
         self.preprocessed_code = ""
-        self.removed_comments = []
-        self.removed_directives = []
+        self.removed_comment_count = 0
         self.setup_patterns()
 
     def _blank_removed_line(self, line):
@@ -28,30 +112,18 @@ class LexicalAnalyzer:
     def _remove_preprocessor_directives(self, code):
         lines = code.splitlines(keepends=True)
         processed_lines = []
-        offset = 0
         index = 0
 
         while index < len(lines):
             line = lines[index]
-            line_start = offset
 
             if re.match(r'^[ \t]*#', line):
                 directive_lines = [line]
-                offset += len(line)
 
                 while line.rstrip('\r\n').endswith('\\') and index + 1 < len(lines):
                     index += 1
                     line = lines[index]
                     directive_lines.append(line)
-                    offset += len(line)
-
-                directive_value = ''.join(directive_lines)
-                self.removed_directives.append({
-                    'type': 'PREPROCESSOR_DIRECTIVE',
-                    'value': directive_value,
-                    'start': line_start,
-                    'end': offset
-                })
                 processed_lines.extend(
                     self._blank_removed_line(directive_line)
                     for directive_line in directive_lines
@@ -60,28 +132,18 @@ class LexicalAnalyzer:
                 continue
 
             processed_lines.append(line)
-            offset += len(line)
             index += 1
 
         return ''.join(processed_lines)
     
     def preprocess(self, code):
         """Preprocessing Phase: Remove comments and preprocessor directives"""
-        self.original_code = code
-        self.removed_comments = []
-        self.removed_directives = []
+        self.removed_comment_count = 0
         preprocessed = code
         
         # Remove multi-line comments /* ... */
         multi_comment_pattern = r'/\*[\s\S]*?\*/'
-        multi_comments = list(re.finditer(multi_comment_pattern, preprocessed))
-        for match in multi_comments:
-            self.removed_comments.append({
-                'type': 'MULTI_LINE_COMMENT',
-                'value': match.group(0),
-                'start': match.start(),
-                'end': match.end()
-            })
+        self.removed_comment_count += sum(1 for _ in re.finditer(multi_comment_pattern, preprocessed))
         preprocessed = re.sub(
             multi_comment_pattern,
             lambda match: self._mask_removed_text(match.group(0)),
@@ -90,21 +152,12 @@ class LexicalAnalyzer:
         
         # Remove single-line comments // ...
         single_comment_pattern = r'//.*'
-        single_comments = list(re.finditer(single_comment_pattern, preprocessed))
-        for match in single_comments:
-            self.removed_comments.append({
-                'type': 'SINGLE_LINE_COMMENT',
-                'value': match.group(0),
-                'start': match.start(),
-                'end': match.end()
-            })
+        self.removed_comment_count += sum(1 for _ in re.finditer(single_comment_pattern, preprocessed))
         preprocessed = re.sub(
             single_comment_pattern,
             lambda match: self._mask_removed_text(match.group(0)),
             preprocessed
         )
-
-        self.removed_comments.sort(key=lambda comment: comment['start'])
 
         preprocessed = self._remove_preprocessor_directives(preprocessed)
         
@@ -135,30 +188,17 @@ class LexicalAnalyzer:
             }
         }
         
-        # Patterns for tokens
-        self.patterns = [
-            # String literals
-            ('STRING_LITERAL', r'"(?:[^"\\]|\\.)*"'),
-            # Character literals
-            ('CHAR_LITERAL', r"'(?:[^'\\]|\\.)+'"),
-            # Floating point numbers
-            ('FLOAT_LITERAL', r'\d+\.\d+([eE][+-]?\d+)?[fFlL]?'),
-            # Integer literals (hex, octal, decimal)
-            ('INT_LITERAL', r'0[xX][0-9a-fA-F]+[lLuU]*|0[0-7]+[lLuU]*|\d+[lLuU]*'),
-            # Identifiers and keywords (will be separated later)
-            ('IDENTIFIER', r'[a-zA-Z_]\w*'),
-            # Operators and punctuation
-            ('OPERATOR', r'\+\+|--|->|\*=|/=|%=|\+=|-=|<<=|>>=|&=|\^=|\|=|&&|\|\||<<|>>|<=|>=|==|!=|[+\-*/%=<>!&|^~]'),
-            # Delimiters
-            ('DELIMITER', r'[{}()\[\];,.:?]'),
-            # Whitespace (to skip)
-            ('WHITESPACE', r'\s+'),
-            # Unknown characters
-            ('UNKNOWN', r'.'),
+        self.compiled_patterns = [
+            ('STRING_LITERAL', re.compile(r'"(?:[^"\\]|\\.)*"')),
+            ('CHAR_LITERAL', re.compile(r"'(?:[^'\\]|\\.)+'")),
+            ('FLOAT_LITERAL', re.compile(r'\d+\.\d+([eE][+-]?\d+)?[fFlL]?')),
+            ('INT_LITERAL', re.compile(r'0[xX][0-9a-fA-F]+[lLuU]*|0[0-7]+[lLuU]*|\d+[lLuU]*')),
+            ('IDENTIFIER', re.compile(r'[a-zA-Z_]\w*')),
+            ('OPERATOR', re.compile(r'\+\+|--|->|\*=|/=|%=|\+=|-=|<<=|>>=|&=|\^=|\|=|&&|\|\||<<|>>|<=|>=|==|!=|[+\-*/%=<>!&|^~]')),
+            ('DELIMITER', re.compile(r'[{}()\[\];,.:?]')),
+            ('WHITESPACE', re.compile(r'\s+')),
+            ('UNKNOWN', re.compile(r'.')),
         ]
-        
-        # Compile patterns
-        self.compiled_patterns = [(name, re.compile(pattern)) for name, pattern in self.patterns]
     
     def analyze(self, code):
         """Perform lexical analysis on the code"""
@@ -210,6 +250,97 @@ class LexicalAnalyzer:
         
         return self.tokens
     
+    def build_symbol_table(self):
+        """Build symbol table with simple two-pass approach"""
+        self.symbol_table = SymbolTable()
+        
+        data_types = {
+            'int', 'float', 'double', 'char', 'void', 'long', 'short',
+            'unsigned', 'signed', 'bool', 'size_t', 'auto'
+        }
+        
+        # PASS 1: Find all declarations and build symbol table
+        i = 0
+        while i < len(self.tokens):
+            token = self.tokens[i]
+            
+            # Track scope changes
+            if token['type'] == 'DELIMITER':
+                if token['value'] == '{':
+                    self.symbol_table.enter_scope()
+                elif token['value'] == '}':
+                    self.symbol_table.exit_scope()
+            
+            # Find type declarations
+            if token['type'] == 'KEYWORD' and token['value'] in data_types:
+                base_type = token['value']
+                j = i + 1
+                
+                # Handle type modifiers (unsigned int, long long, etc.)
+                while j < len(self.tokens) and \
+                    self.tokens[j]['type'] == 'KEYWORD' and \
+                    self.tokens[j]['value'] in data_types:
+                    base_type += ' ' + self.tokens[j]['value']
+                    j += 1
+                
+                # Process all identifiers in this declaration
+                while j < len(self.tokens):
+                    t = self.tokens[j]
+                    
+                    # End of declaration
+                    if t['type'] == 'DELIMITER' and t['value'] in [';', '{']:
+                        break
+                    
+                    # Handle pointers
+                    data_type = base_type
+                    while j < len(self.tokens) and \
+                        self.tokens[j]['type'] == 'OPERATOR' and \
+                        self.tokens[j]['value'] == '*':
+                        data_type += '*'
+                        j += 1
+                    
+                    # Found identifier
+                    if j < len(self.tokens) and self.tokens[j]['type'] == 'IDENTIFIER':
+                        id_name = self.tokens[j]['value']
+                        id_line = self.tokens[j]['line']
+                        
+                        # Check if function (followed by '(')
+                        is_function = False
+                        if j + 1 < len(self.tokens) and \
+                        self.tokens[j + 1]['type'] == 'DELIMITER' and \
+                        self.tokens[j + 1]['value'] == '(':
+                            is_function = True
+                            category = 'function'
+                            # Enter function scope
+                            self.symbol_table.enter_scope(id_name)
+                        else:
+                            category = 'variable'
+                        
+                        # Check if initialized
+                        initialized = False
+                        if j + 1 < len(self.tokens) and \
+                        self.tokens[j + 1]['type'] == 'OPERATOR' and \
+                        self.tokens[j + 1]['value'] == '=':
+                            initialized = True
+                        
+                        # Add symbol
+                        self.symbol_table.add_symbol(
+                            id_name,
+                            category,
+                            id_line,
+                            data_type,
+                            initialized
+                        )
+                    
+                    j += 1
+            
+            i += 1
+        
+        # PASS 2: Calculate usage counts based on frequency
+        self.symbol_table.calculate_usage_counts(self.tokens)
+        
+        return self.symbol_table
+    
     def get_token_summary(self):
         """Get summary statistics of tokens"""
         summary = {}
@@ -228,7 +359,7 @@ def index():
 def analyze():
     """Analyze code and return tokens"""
     try:
-        data = request.json
+        data = request.get_json(silent=True) or {}
         code = data.get('code', '')
         language = data.get('language', 'C')
         
@@ -239,19 +370,25 @@ def analyze():
         analyzer = LexicalAnalyzer(language)
         tokens = analyzer.analyze(code)
         summary = analyzer.get_token_summary()
+
+        #build symbol table
+        symbol_table = analyzer.build_symbol_table()
+        symbol_stats = symbol_table.get_statistics()
+        all_symbols = symbol_table.get_all_symbols()
+
         
         return jsonify({
-            'success': True,
             'tokens': tokens,
             'summary': summary,
             'total_tokens': len(tokens),
             'preprocessing': {
-                'comments_removed': len(analyzer.removed_comments),
-                'comment_details': analyzer.removed_comments,
-                'directives_removed': len(analyzer.removed_directives),
-                'directive_details': analyzer.removed_directives
+                'comments_removed': analyzer.removed_comment_count
             },
-            'preprocessed_code': analyzer.preprocessed_code
+            'preprocessed_code': analyzer.preprocessed_code,
+            'symbol_table': {
+                'symbols': all_symbols,
+                'statistics': symbol_stats
+            }
         })
     
     except Exception as e:

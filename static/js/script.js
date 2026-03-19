@@ -14,11 +14,8 @@ const loadingOverlay = document.getElementById('loadingOverlay');
 const currentLang = document.getElementById('currentLang');
 const summaryStats = document.getElementById('summaryStats');
 const tokenChart = document.getElementById('tokenChart');
-const commentsRemovedValue = document.getElementById('commentsRemoved');
-const removedCommentsList = document.getElementById('removedCommentsList');
 const preprocessedCodeBlock = document.getElementById('preprocessedCode');
 const tokensBody = document.getElementById('tokensBody');
-const dumpPreview = document.getElementById('dumpPreview');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -176,9 +173,9 @@ async function analyzeCode() {
 
         // Update UI
         displaySummary(data);
-        displayPreprocessing(data.preprocessing, data.preprocessed_code);
+        displayPreprocessing(data.preprocessed_code);
+        displaySymbolTable(data.symbol_table);
         displayTokens(data.tokens);
-        displayDump(data);
 
         // Switch to preprocessing tab to show the phases
         switchTab('preprocessing');
@@ -192,34 +189,6 @@ async function analyzeCode() {
     } finally {
         showLoading(false);
     }
-}
-
-// Display preprocessing information
-function displayPreprocessing(preprocessing, preprocessedCode) {
-    // Update comments removed count
-    setText(commentsRemovedValue, preprocessing.comments_removed);
-    
-    // Display removed comments
-    if (removedCommentsList) {
-        removedCommentsList.innerHTML = '';
-        
-        if (preprocessing.comment_details && preprocessing.comment_details.length > 0) {
-            preprocessing.comment_details.forEach((comment, index) => {
-                const commentItem = document.createElement('div');
-                commentItem.className = 'comment-item';
-                commentItem.innerHTML = `
-                    <span class="comment-type">${comment.type.replace('_', ' ')}</span>
-                    <div class="comment-value">${escapeHtml(comment.value)}</div>
-                `;
-                removedCommentsList.appendChild(commentItem);
-            });
-        } else {
-            removedCommentsList.innerHTML = '<p class="no-data">No comments found in code</p>';
-        }
-    }
-    
-    // Display preprocessed code
-    setText(preprocessedCodeBlock, preprocessedCode);
 }
 
 // Display summary
@@ -259,6 +228,63 @@ function displaySummary(data) {
     });
 }
 
+// Display preprocessing information
+function displayPreprocessing(preprocessedCode) {
+    setText(preprocessedCodeBlock, preprocessedCode);
+}
+
+// Display symbol table
+function displaySymbolTable(symbolTableData) {
+
+    const { symbols, statistics } = symbolTableData;
+
+    const totalSymbolsEl = document.getElementById('totalSymbols');
+    const totalVariablesEl = document.getElementById('totalVariables');
+    const totalFunctionsEl = document.getElementById('totalFunctions');
+
+    if (totalSymbolsEl) totalSymbolsEl.textContent = statistics.total_symbols || 0;
+    if (totalVariablesEl) totalVariablesEl.textContent = statistics.variables || 0;
+    if (totalFunctionsEl) totalFunctionsEl.textContent = statistics.functions || 0;
+
+    const tbody = document.getElementById('symbolTableBody');
+
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (!symbols || symbols.length === 0) {
+        tbody.innerHTML =
+            '<tr><td colspan="8" class="no-data">No symbols found</td></tr>';
+        return;
+    }
+
+    // Sort symbols by declaration line
+    symbols.sort((a, b) => a.declared_line - b.declared_line);
+
+    symbols.forEach((symbol, index) => {
+
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td><code>${escapeHtml(symbol.name)}</code></td>
+            <td><span class="symbol-type-${symbol.category}">
+                ${symbol.category}
+            </span></td>
+            <td>${symbol.data_type || 'N/A'}</td>
+            <td>${symbol.scope}</td>
+            <td>${symbol.declared_line}</td>
+            <td>${symbol.initialized ? 'Yes' : 'No'}</td>
+            <td>${symbol.usage_count}</td>
+        `;
+
+        tbody.appendChild(row);
+
+    });
+}
+
+
+
 // Display tokens in table
 function displayTokens(tokens) {
     if (!tokensBody) {
@@ -283,68 +309,6 @@ function displayTokens(tokens) {
         `;
         tokensBody.appendChild(row);
     });
-}
-
-// Display dump preview
-function displayDump(data) {
-    if (!dumpPreview) {
-        return;
-    }
-    
-    let dumpText = `${'='.repeat(80)}\n`;
-    dumpText += `LEXICAL ANALYSIS DUMP\n`;
-    dumpText += `Language: ${currentLanguage}\n`;
-    dumpText += `Date: ${new Date().toLocaleString()}\n`;
-    dumpText += `Total Tokens: ${data.total_tokens}\n`;
-    dumpText += `Comments Removed: ${data.preprocessing.comments_removed}\n`;
-    dumpText += `${'='.repeat(80)}\n\n`;
-    
-    dumpText += `PHASE 1: PREPROCESSING\n`;
-    dumpText += `${'-'.repeat(80)}\n`;
-    dumpText += `Comments Removed: ${data.preprocessing.comments_removed}\n\n`;
-    
-    if (data.preprocessing.comment_details && data.preprocessing.comment_details.length > 0) {
-        dumpText += `Removed Comments:\n`;
-        data.preprocessing.comment_details.forEach((comment, index) => {
-            dumpText += `  ${index + 1}. ${comment.type}: ${comment.value.substring(0, 50)}${comment.value.length > 50 ? '...' : ''}\n`;
-        });
-    }
-    
-    dumpText += `\nPHASE 2: TOKENIZATION\n`;
-    dumpText += `${'-'.repeat(80)}\n`;
-    dumpText += `TOKEN SUMMARY:\n`;
-    dumpText += `${'-'.repeat(80)}\n`;
-    
-    const sortedSummary = Object.entries(data.summary).sort((a, b) => a[0].localeCompare(b[0]));
-    sortedSummary.forEach(([type, count]) => {
-        dumpText += `${type.padEnd(25)} : ${count.toString().padStart(5)}\n`;
-    });
-    
-    dumpText += `\n${'='.repeat(80)}\n`;
-    dumpText += `DETAILED TOKEN LIST:\n`;
-    dumpText += `${'='.repeat(80)}\n\n`;
-    
-    dumpText += `${'#'.padEnd(6)} ${'Type'.padEnd(25)} ${'Lexeme'.padEnd(30)} ${'Line'.padEnd(6)} ${'Col'.padEnd(6)}\n`;
-    dumpText += `${'-'.repeat(80)}\n`;
-    
-    data.tokens.forEach((token, index) => {
-        let lexeme = token.value;
-        if (lexeme.length > 28) {
-            lexeme = lexeme.substring(0, 25) + '...';
-        }
-        
-        dumpText += `${(index + 1).toString().padEnd(6)} `;
-        dumpText += `${token.type.padEnd(25)} `;
-        dumpText += `${lexeme.padEnd(30)} `;
-        dumpText += `${token.line.toString().padEnd(6)} `;
-        dumpText += `${token.column.toString().padEnd(6)}\n`;
-    });
-    
-    dumpText += `\n${'='.repeat(80)}\n`;
-    dumpText += `END OF DUMP\n`;
-    dumpText += `${'='.repeat(80)}\n`;
-    
-    dumpPreview.textContent = dumpText;
 }
 
 // Update status
@@ -374,13 +338,10 @@ function validateDom() {
         ['analyzeBtn', analyzeBtn],
         ['statusText', statusText],
         ['analysisTime', analysisTime],
-        ['commentsRemoved', commentsRemovedValue],
-        ['removedCommentsList', removedCommentsList],
         ['preprocessedCode', preprocessedCodeBlock],
         ['summaryStats', summaryStats],
         ['tokenChart', tokenChart],
-        ['tokensBody', tokensBody],
-        ['dumpPreview', dumpPreview]
+        ['tokensBody', tokensBody]
     ];
 
     const missingIds = requiredElements
