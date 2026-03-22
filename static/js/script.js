@@ -8,14 +8,10 @@ const analyzeBtn = document.getElementById('analyzeBtn');
 const uploadBtn = document.getElementById('uploadBtn');
 const fileInput = document.getElementById('fileInput');
 const clearCodeBtn = document.getElementById('clearCodeBtn');
-const statusText = document.getElementById('statusText');
-const analysisTime = document.getElementById('analysisTime');
-const loadingOverlay = document.getElementById('loadingOverlay');
 const currentLang = document.getElementById('currentLang');
-const summaryStats = document.getElementById('summaryStats');
-const tokenChart = document.getElementById('tokenChart');
 const preprocessedCodeBlock = document.getElementById('preprocessedCode');
 const tokensBody = document.getElementById('tokensBody');
+const symbolTableBody = document.getElementById('symbolTableBody');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -33,7 +29,6 @@ function setupEventListeners() {
             this.classList.add('active');
             currentLanguage = this.dataset.lang;
             setText(currentLang, currentLanguage);
-            updateStatus(`Language changed to ${currentLanguage}`);
         });
     });
 
@@ -117,7 +112,6 @@ function handleFileUpload(event) {
 
         codeInput.value = e.target.result;
         updateLineNumbers();
-        updateStatus(`Loaded: ${file.name}`);
     };
     reader.readAsText(file);
 }
@@ -130,7 +124,6 @@ function clearCode() {
 
     codeInput.value = '';
     updateLineNumbers();
-    updateStatus('Code cleared');
 }
 
 // Analyze code
@@ -146,9 +139,6 @@ async function analyzeCode() {
         alert('Please enter or upload code first!');
         return;
     }
-
-    showLoading(true);
-    const startTime = Date.now();
 
     try {
         const response = await fetch('/analyze', {
@@ -168,122 +158,24 @@ async function analyzeCode() {
             throw new Error(data.error);
         }
 
-        const analysisTimeMs = Date.now() - startTime;
-        setText(analysisTime, `Analysis completed in ${analysisTimeMs}ms`);
-
         // Update UI
-        displaySummary(data);
         displayPreprocessing(data.preprocessed_code);
-        displaySymbolTable(data.symbol_table);
         displayTokens(data.tokens);
+        displaySymbolTable(data.symbol_table);
 
-        // Switch to preprocessing tab to show the phases
+        // Switch to preprocessing tab
         switchTab('preprocessing');
-
-        updateStatus(`Analysis complete: ${data.total_tokens} tokens found, ${data.preprocessing.comments_removed} comments removed`);
 
     } catch (error) {
         console.error('Error:', error);
         alert(`Analysis failed: ${error.message}`);
-        updateStatus('Analysis failed');
-    } finally {
-        showLoading(false);
     }
-}
-
-// Display summary
-function displaySummary(data) {
-    if (!summaryStats || !tokenChart) {
-        return;
-    }
-
-    // Create stats cards
-    summaryStats.innerHTML = `
-        <div class="stat-card">
-            <div class="stat-value">${data.total_tokens}</div>
-            <div class="stat-label">Total Tokens</div>
-        </div>
-    `;
-
-    // Create chart
-    tokenChart.innerHTML = '<h3 style="margin-bottom: 20px; color: #1e293b;">Token Distribution</h3>';
-
-    const sortedSummary = Object.entries(data.summary).sort((a, b) => b[1] - a[1]);
-    const maxCount = Math.max(...Object.values(data.summary));
-
-    sortedSummary.forEach(([type, count]) => {
-        const percentage = (count / maxCount) * 100;
-        const row = document.createElement('div');
-        row.className = 'chart-row';
-        row.innerHTML = `
-            <div class="chart-label">${type}</div>
-            <div class="chart-bar-container">
-                <div class="chart-bar" style="width: ${percentage}%">
-                    ${percentage > 15 ? count : ''}
-                </div>
-            </div>
-            <div class="chart-count">${count}</div>
-        `;
-        tokenChart.appendChild(row);
-    });
 }
 
 // Display preprocessing information
 function displayPreprocessing(preprocessedCode) {
     setText(preprocessedCodeBlock, preprocessedCode);
 }
-
-// Display symbol table
-function displaySymbolTable(symbolTableData) {
-
-    const { symbols, statistics } = symbolTableData;
-
-    const totalSymbolsEl = document.getElementById('totalSymbols');
-    const totalVariablesEl = document.getElementById('totalVariables');
-    const totalFunctionsEl = document.getElementById('totalFunctions');
-
-    if (totalSymbolsEl) totalSymbolsEl.textContent = statistics.total_symbols || 0;
-    if (totalVariablesEl) totalVariablesEl.textContent = statistics.variables || 0;
-    if (totalFunctionsEl) totalFunctionsEl.textContent = statistics.functions || 0;
-
-    const tbody = document.getElementById('symbolTableBody');
-
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    if (!symbols || symbols.length === 0) {
-        tbody.innerHTML =
-            '<tr><td colspan="8" class="no-data">No symbols found</td></tr>';
-        return;
-    }
-
-    // Sort symbols by declaration line
-    symbols.sort((a, b) => a.declared_line - b.declared_line);
-
-    symbols.forEach((symbol, index) => {
-
-        const row = document.createElement('tr');
-
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><code>${escapeHtml(symbol.name)}</code></td>
-            <td><span class="symbol-type-${symbol.category}">
-                ${symbol.category}
-            </span></td>
-            <td>${symbol.data_type || 'N/A'}</td>
-            <td>${symbol.scope}</td>
-            <td>${symbol.declared_line}</td>
-            <td>${symbol.initialized ? 'Yes' : 'No'}</td>
-            <td>${symbol.usage_count}</td>
-        `;
-
-        tbody.appendChild(row);
-
-    });
-}
-
-
 
 // Display tokens in table
 function displayTokens(tokens) {
@@ -311,37 +203,56 @@ function displayTokens(tokens) {
     });
 }
 
-// Update status
-function updateStatus(message) {
-    setText(statusText, message);
-}
-
-// Show/hide loading overlay
-function showLoading(show) {
-    if (!loadingOverlay) {
+// Display symbol table
+function displaySymbolTable(symbolTableData) {
+    if (!symbolTableBody) {
         return;
     }
 
-    loadingOverlay.style.display = show ? 'flex' : 'none';
+    const { symbols } = symbolTableData;
+
+    symbolTableBody.innerHTML = '';
+
+    if (!symbols || symbols.length === 0) {
+        symbolTableBody.innerHTML = '<tr><td colspan="8" class="no-data">No symbols found</td></tr>';
+        return;
+    }
+
+    // Sort symbols by declaration line
+    symbols.sort((a, b) => a.declared_line - b.declared_line);
+
+    symbols.forEach((symbol, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td><code>${escapeHtml(symbol.name)}</code></td>
+            <td><span class="symbol-type-${symbol.category}">${symbol.category}</span></td>
+            <td>${symbol.data_type || 'N/A'}</td>
+            <td>${symbol.scope}</td>
+            <td>${symbol.declared_line}</td>
+            <td>${symbol.initialized ? 'Yes' : 'No'}</td>
+            <td>${symbol.usage_count}</td>
+        `;
+        symbolTableBody.appendChild(row);
+    });
 }
 
+// Utility function to set text safely
 function setText(element, value) {
     if (element) {
         element.textContent = value;
     }
 }
 
+// Validate DOM elements
 function validateDom() {
     const requiredElements = [
         ['codeInput', codeInput],
         ['lineNumbers', lineNumbers],
         ['analyzeBtn', analyzeBtn],
-        ['statusText', statusText],
-        ['analysisTime', analysisTime],
         ['preprocessedCode', preprocessedCodeBlock],
-        ['summaryStats', summaryStats],
-        ['tokenChart', tokenChart],
-        ['tokensBody', tokensBody]
+        ['tokensBody', tokensBody],
+        ['symbolTableBody', symbolTableBody]
     ];
 
     const missingIds = requiredElements
@@ -353,7 +264,7 @@ function validateDom() {
     }
 }
 
-// Escape HTML
+// Escape HTML to prevent XSS
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;

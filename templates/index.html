@@ -61,87 +61,20 @@
 
                 <!-- Tabs -->
                 <div class="tabs">
-                    <button class="tab-btn" data-tab="preprocessing">Preprocessing</button>
+                    <button class="tab-btn active" data-tab="preprocessing">Preprocessing</button>
                     <button class="tab-btn" data-tab="tokens">Tokens</button>
                     <button class="tab-btn" data-tab="symboltable">Symbol Table</button>
-                    <button class="tab-btn active" data-tab="summary">Summary</button>
                 </div>
 
                 <!-- Tab Content -->
                 <div class="tab-content">
-                    <!-- Summary Tab -->
-                    <div id="summary-tab" class="tab-pane active">
-                        <div class="summary-content">
-                            <div id="summaryStats" class="stats-grid">
-                                <div class="stat-card">
-                                    <div class="stat-value">0</div>
-                                    <div class="stat-label">Total Tokens</div>
-                                </div>
-                            </div>
-                            <div id="tokenChart" class="chart-container"></div>
-                        </div>
-                    </div>
-
                     <!-- Preprocessing Tab -->
-                    <div id="preprocessing-tab" class="tab-pane">
+                    <div id="preprocessing-tab" class="tab-pane active">
                         <div class="preprocessing-content">
                             <h3>Phase 1: Preprocessing</h3>
                             <div class="preprocessed-code-section">
                                 <h4>Code(Without Comments & Preprocessor Directives):</h4>
                                 <pre id="preprocessedCode" class="code-display">No analysis performed yet</pre>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Symbol Table Tab -->
-                    <div id="symboltable-tab" class="tab-pane">
-                        <div class="symboltable-content">
-                            <h3>Phase 3: Symbol Table Generation</h3>
-                            
-                            <!-- Symbol Statistics -->
-                            <div class="symbol-stats-grid">
-                                <div class="stat-card">
-                                    <div class="stat-value" id="totalSymbols">0</div>
-                                    <div class="stat-label">Total Identifiers</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="totalVariables">0</div>
-                                    <div class="stat-label">Variables</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="totalFunctions">0</div>
-                                    <div class="stat-label">Functions</div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-value" id="unusedVariables">0</div>
-                                    <div class="stat-label">Unused Variables</div>
-                                </div>
-                            </div>
-                            
-                            <!-- Symbol Table -->
-                            <div class="table-container">
-                                <h4>Symbol Table</h4>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                        <th>#</th>
-                                        <th>Name</th>
-                                        <th>Category</th>
-                                        <th>Data Type</th>
-                                        <th>Scope</th>
-                                        <th>Declared Line</th>
-                                        <th>Initialized</th>
-                                        <th>Usage Count</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="symbolTableBody">
-                                        <tr>
-                                            <td colspan="8" class="no-data">
-                                                No symbols found. Analyze code to generate symbol table.
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
                     </div>
@@ -170,27 +103,43 @@
                         </div>
                     </div>
 
+                    <!-- Symbol Table Tab -->
+                    <div id="symboltable-tab" class="tab-pane">
+                        <div class="symboltable-content">
+                            <h3>Phase 3: Symbol Table Generation</h3>
+                            
+                            <!-- Symbol Table -->
+                            <div class="table-container">
+                                <h4>Symbol Table</h4>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Name</th>
+                                            <th>Category</th>
+                                            <th>Data Type</th>
+                                            <th>Scope</th>
+                                            <th>Declared Line</th>
+                                            <th>Initialized</th>
+                                            <th>Usage Count</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="symbolTableBody">
+                                        <tr>
+                                            <td colspan="8" class="no-data">
+                                                No symbols found. Analyze code to generate symbol table.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
-
-        <!-- Status Bar -->
-        <div class="status-bar">
-            <span id="statusText">Ready</span>
-            <span id="analysisTime"></span>
-        </div>
     </div>
-
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
-        <div class="spinner"></div>
-        <p>Analyzing code...</p>
-    </div>
-
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
-
-
-
-
