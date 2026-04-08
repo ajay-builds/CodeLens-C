@@ -3,143 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lexical Analyzer - C and C++</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta name="description" content="CodeLens-C — A powerful static source code analyzer for C/C++ that detects lexical, syntax, and semantic errors in real-time.">
+    <title>CodeLens-C — Static C/C++ Analyzer</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- CodeMirror 5 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
+
+    <!-- App Styles -->
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <h1>CodeLens-C</h1>
-            <p class="subtitle">Analyze C and C++ Source Code</p>
-        </header>
-
-        <!-- Language Selection Panel -->
-        <div class="language-panel">
-            <h3>Select Language</h3>
-            <div class="language-buttons">
-                <button class="lang-btn active" data-lang="C">C</button>
-                <button class="lang-btn" data-lang="C++">C++</button>
-            </div>
-            <div class="selected-lang">
-                Selected: <span id="currentLang">C</span>
-            </div>
-        </div>
-
-        <!-- Main Content Area -->
-        <div class="main-content">
-            <!-- Left Panel - Code Input -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>Source Code</h2>
-                    <div class="panel-actions">
-                        <button id="uploadBtn" class="btn btn-secondary">
-                            Upload File
-                        </button>
-                        <input type="file" id="fileInput" accept=".c,.cpp,.h,.hpp" style="display: none;">
-                        <button id="clearCodeBtn" class="btn btn-secondary">
-                            Clear
-                        </button>
-                    </div>
+    <!-- ═══ Header ═══ -->
+    <header id="app-header">
+        <div class="header-content">
+            <div class="logo-group">
+                <div class="logo-icon">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <rect width="32" height="32" rx="8" fill="url(#logo-grad)"/>
+                        <path d="M10 8L22 16L10 24V8Z" fill="white" opacity="0.9"/>
+                        <defs>
+                            <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32">
+                                <stop stop-color="#6366f1"/>
+                                <stop offset="1" stop-color="#a855f7"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
                 </div>
-                <div class="code-editor">
-                    <div class="line-numbers" id="lineNumbers">1</div>
-                    <textarea id="codeInput" placeholder="Paste your code here or upload a file..."></textarea>
-                </div>
-                <div class="panel-footer">
-                    <button id="analyzeBtn" class="btn btn-primary">
-                        Analyze Code
-                    </button>
+                <div>
+                    <h1>CodeLens-C</h1>
+                    <p class="tagline">Static Source Code Analyzer for C/C++</p>
                 </div>
             </div>
-
-            <!-- Right Panel - Results -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>Analysis Results</h2>
-                </div>
-
-                <!-- Tabs -->
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="preprocessing">Preprocessing</button>
-                    <button class="tab-btn" data-tab="tokens">Tokens</button>
-                    <button class="tab-btn" data-tab="symboltable">Symbol Table</button>
-                </div>
-
-                <!-- Tab Content -->
-                <div class="tab-content">
-                    <!-- Preprocessing Tab -->
-                    <div id="preprocessing-tab" class="tab-pane active">
-                        <div class="preprocessing-content">
-                            <h3>Phase 1: Preprocessing</h3>
-                            <div class="preprocessed-code-section">
-                                <h4>Code(Without Comments & Preprocessor Directives):</h4>
-                                <pre id="preprocessedCode" class="code-display">No analysis performed yet</pre>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tokens Tab -->
-                    <div id="tokens-tab" class="tab-pane">
-                        <div class="table-container">
-                            <table id="tokensTable">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Type</th>
-                                        <th>Lexeme</th>
-                                        <th>Line</th>
-                                        <th>Column</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tokensBody">
-                                    <tr>
-                                        <td colspan="5" class="no-data">
-                                            No analysis performed yet. Click "Analyze Code" to begin.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Symbol Table Tab -->
-                    <div id="symboltable-tab" class="tab-pane">
-                        <div class="symboltable-content">
-                            <h3>Phase 3: Symbol Table Generation</h3>
-                            
-                            <!-- Symbol Table -->
-                            <div class="table-container">
-                                <h4>Symbol Table</h4>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Name</th>
-                                            <th>Category</th>
-                                            <th>Data Type</th>
-                                            <th>Scope</th>
-                                            <th>Declared Line</th>
-                                            <th>Initialized</th>
-                                            <th>Usage Count</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="symbolTableBody">
-                                        <tr>
-                                            <td colspan="8" class="no-data">
-                                                No symbols found. Analyze code to generate symbol table.
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
+            <div class="header-actions">
+                <button id="btn-sample" class="btn btn-ghost" title="Load sample code">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1h5.586a1 1 0 0 1 .707.293l2.414 2.414a1 1 0 0 1 .293.707V13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5h-2a1 1 0 0 1-1-1V2H4zm5 0v2h2L9 2z"/></svg>
+                    Sample Code
+                </button>
+                <label id="btn-upload" class="btn btn-ghost" title="Upload .c or .cpp file">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 0 1 .5.5v5.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 1 1 .708-.708L7.5 7.293V1.5A.5.5 0 0 1 8 1zM2 10a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 1 1 0v2A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5v-2A.5.5 0 0 1 2 10z"/></svg>
+                    Upload File
+                    <input type="file" id="file-input" accept=".c,.cpp,.h,.hpp" hidden>
+                </label>
+                <button id="btn-analyze" class="btn btn-primary" title="Analyze code">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.44 1.17a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/></svg>
+                    Analyze
+                </button>
             </div>
         </div>
+    </header>
+
+    <!-- ═══ Main Layout ═══ -->
+    <main id="app-main">
+        <!-- Editor Panel -->
+        <section id="editor-panel" class="panel">
+            <div class="panel-header">
+                <h2>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M5.854 4.854a.5.5 0 1 0-.708-.708l-3.5 3.5a.5.5 0 0 0 0 .708l3.5 3.5a.5.5 0 0 0 .708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 0 1 .708-.708l3.5 3.5a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L13.293 8l-3.147-3.146z"/></svg>
+                    Source Code
+                </h2>
+                <span id="file-name" class="badge">untitled.c</span>
+            </div>
+            <div id="editor-wrapper">
+                <textarea id="code-editor"></textarea>
+            </div>
+        </section>
+
+        <!-- Results Panel -->
+        <section id="results-panel" class="panel">
+            <div class="panel-header">
+                <h2>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3z"/></svg>
+                    Analysis Results
+                </h2>
+                <div id="stats-badges"></div>
+            </div>
+
+            <!-- Tabs -->
+            <div id="result-tabs" class="tabs">
+                <button class="tab active" data-tab="errors-tab">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566z M8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>
+                    Errors
+                    <span id="error-count" class="tab-badge">0</span>
+                </button>
+                <button class="tab" data-tab="tokens-tab">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 3A1.5 1.5 0 0 0 1 4.5V6h14V4.5A1.5 1.5 0 0 0 13.5 3h-11zM15 7H1v4.5A1.5 1.5 0 0 0 2.5 13h11a1.5 1.5 0 0 0 1.5-1.5V7z"/></svg>
+                    Tokens
+                    <span id="token-count" class="tab-badge">0</span>
+                </button>
+                <button class="tab" data-tab="symbols-tab">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 1.5A1.5 1.5 0 0 1 1.5 0h13A1.5 1.5 0 0 1 16 1.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 14.5v-13zM1.5 1a.5.5 0 0 0-.5.5V5h14V1.5a.5.5 0 0 0-.5-.5h-13zM1 14.5a.5.5 0 0 0 .5.5H5V6H1v8.5zM6 6v9h8.5a.5.5 0 0 0 .5-.5V6H6z"/></svg>
+                    Symbol Table
+                    <span id="symbol-count" class="tab-badge">0</span>
+                </button>
+                <button class="tab" data-tab="preprocessed-tab">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/><path d="M6.854 4.646a.5.5 0 0 1 0 .708L4.207 8l2.647 2.646a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 0 1 .708 0zm2.292 0a.5.5 0 0 0 0 .708L11.793 8l-2.647 2.646a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708 0z"/></svg>
+                    Preprocessed
+                </button>
+            </div>
+
+            <!-- Tab content -->
+            <div id="tab-content">
+                <!-- Errors tab -->
+                <div id="errors-tab" class="tab-pane active">
+                    <div id="errors-placeholder" class="placeholder-msg">
+                        <svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor" opacity="0.3"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.44 1.17a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/></svg>
+                        <p>Click <strong>Analyze</strong> to scan your code</p>
+                    </div>
+                    <div id="errors-list" class="result-list"></div>
+                </div>
+
+                <!-- Tokens tab -->
+                <div id="tokens-tab" class="tab-pane">
+                    <div id="tokens-placeholder" class="placeholder-msg">
+                        <svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor" opacity="0.3"><path d="M2.5 3A1.5 1.5 0 0 0 1 4.5V6h14V4.5A1.5 1.5 0 0 0 13.5 3h-11zM15 7H1v4.5A1.5 1.5 0 0 0 2.5 13h11a1.5 1.5 0 0 0 1.5-1.5V7z"/></svg>
+                        <p>Tokens will appear here after analysis</p>
+                    </div>
+                    <div id="tokens-list" class="result-list token-grid"></div>
+                </div>
+
+                <!-- Symbol Table tab -->
+                <div id="symbols-tab" class="tab-pane">
+                    <div id="symbols-placeholder" class="placeholder-msg">
+                        <svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor" opacity="0.3"><path d="M0 1.5A1.5 1.5 0 0 1 1.5 0h13A1.5 1.5 0 0 1 16 1.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 14.5v-13z"/></svg>
+                        <p>Symbol table will appear here after analysis</p>
+                    </div>
+                    <div id="symbols-table-wrapper">
+                        <table id="symbols-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Kind</th>
+                                    <th>Scope</th>
+                                    <th>Line</th>
+                                </tr>
+                            </thead>
+                            <tbody id="symbols-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Preprocessed tab -->
+                <div id="preprocessed-tab" class="tab-pane">
+                    <div id="preprocess-placeholder" class="placeholder-msg">
+                        <svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor" opacity="0.3"><path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12z"/></svg>
+                        <p>Preprocessed code will appear here</p>
+                    </div>
+                    <pre id="preprocessed-code" class="code-block"></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ═══ Loading Overlay ═══ -->
+    <div id="loading-overlay" class="hidden">
+        <div class="spinner"></div>
+        <p>Analyzing your code…</p>
     </div>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/selection/active-line.min.js"></script>
+
+    <!-- App JS -->
+    <script src="/static/js/main.js"></script>
 </body>
 </html>
