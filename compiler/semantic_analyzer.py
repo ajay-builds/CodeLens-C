@@ -5,10 +5,8 @@ declaration checks, and function validation.
 """
 
 
-# ──────────────────────────────────────────────
-#  Type compatibility
-# ──────────────────────────────────────────────
 
+#  Type compatibility
 NUMERIC_TYPES = {'int', 'float', 'double', 'char', 'short', 'long', 'unsigned', 'signed', 'bool'}
 STRING_TYPES = {'char*', 'string'}
 
@@ -57,10 +55,7 @@ def _type_assignable(target_type, value_type):
     return False
 
 
-# ──────────────────────────────────────────────
 #  Printf / Scanf format checking
-# ──────────────────────────────────────────────
-
 FORMAT_SPECIFIERS = {
     '%d': 'int', '%i': 'int', '%u': 'unsigned',
     '%f': 'float', '%lf': 'double',
@@ -80,10 +75,7 @@ def _count_format_specifiers(fmt_string):
     return [m for m in matches if m != '%%']
 
 
-# ──────────────────────────────────────────────
 #  Semantic Analyzer
-# ──────────────────────────────────────────────
-
 class SemanticAnalyzer:
     """Walk the AST and perform semantic checks."""
 
@@ -342,9 +334,7 @@ class SemanticAnalyzer:
         _, cond, body, line = node
         self._analyze_node(body)
         self._analyze_node(cond)
-
     # ── Return ──
-
     def _analyze_return(self, node):
         _, expr, line = node
         if expr is None:
@@ -594,6 +584,25 @@ class SemanticAnalyzer:
                     f"but {len(extra_args)} argument(s) provided",
                     line
                 )
+
+            # ── Check for missing '&' (address-of) operator ──
+            # scanf arguments must be pointers; passing a plain variable
+            # without '&' is almost certainly a bug.
+            for i, arg in enumerate(extra_args):
+                if arg[0] == 'id':
+                    # Plain variable without & — warn unless it's an array or char*
+                    var_name = arg[1]
+                    sym_info = self.st.lookup(var_name)
+                    # Arrays and char* already decay to pointers, so & is not needed
+                    if sym_info and (sym_info.get('is_array') or sym_info['type'] in ('char*', 'string')):
+                        continue
+                    self.ec.add_warning(
+                        "Semantic",
+                        f"Missing '&' before '{var_name}' in scanf — "
+                        f"scanf expects a pointer (address) for each argument",
+                        arg[2],  # line number from the id node
+                        suggestion=f"Use '&{var_name}' instead of '{var_name}'"
+                    )
         else:
             for arg in args[1:]:
                 self._analyze_node(arg)

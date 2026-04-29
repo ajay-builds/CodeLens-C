@@ -5,7 +5,7 @@ Builds a lightweight AST and detects syntax errors.
 """
 
 import ply.yacc as yacc
-from .lexer import tokens, build_lexer  # noqa: F401 — PLY needs `tokens` in scope
+from .lexer import tokens, build_lexer  #PLY needs `tokens` in scope
 
 
 def build_parser(error_collector):
@@ -31,10 +31,8 @@ def build_parser(error_collector):
         ('right', 'ELSE'),   # dangling else
     )
 
-    # ════════════════════════════════════════════
-    #  Top-level program
-    # ════════════════════════════════════════════
 
+    #  Top-level program
     def p_program(p):
         '''program : declaration_list'''
         p[0] = ('program', p[1])
@@ -47,10 +45,7 @@ def build_parser(error_collector):
         else:
             p[0] = [p[1]]
 
-    # ════════════════════════════════════════════
     #  Declarations
-    # ════════════════════════════════════════════
-
     def p_declaration(p):
         '''declaration : var_declaration
                        | fun_declaration
@@ -163,10 +158,7 @@ def build_parser(error_collector):
         else:
             p[0] = ('param', p[1], p[2], True, p.lineno(2))
 
-    # ════════════════════════════════════════════
     #  Statements
-    # ════════════════════════════════════════════
-
     def p_compound_stmt(p):
         '''compound_stmt : LBRACE local_decls stmt_list RBRACE'''
         p[0] = ('compound', p[2], p[3], p.lineno(1))
@@ -272,10 +264,7 @@ def build_parser(error_collector):
         '''continue_stmt : CONTINUE SEMICOLON'''
         p[0] = ('continue', p.lineno(1))
 
-    # ════════════════════════════════════════════
     #  Expressions
-    # ════════════════════════════════════════════
-
     def p_expression_assign(p):
         '''expression : ID EQUALS expression
                       | ID PLUS_ASSIGN expression
@@ -317,6 +306,7 @@ def build_parser(error_collector):
     def p_expression_unary(p):
         '''expression : NOT expression
                       | BIT_NOT expression
+                      | BIT_AND expression %prec UMINUS
                       | MINUS expression %prec UMINUS
                       | PLUS expression %prec UPLUS'''
         p[0] = ('unary', p[1], p[2], p.lineno(1))
@@ -414,10 +404,7 @@ def build_parser(error_collector):
         '''empty :'''
         p[0] = None
 
-    # ════════════════════════════════════════════
     #  Error recovery
-    # ════════════════════════════════════════════
-
     def p_error(p):
         if p:
             # Try to give specific messages
@@ -515,5 +502,5 @@ def parse(source_code, error_collector):
     except Exception as e:
         error_collector.add_error("Syntax", f"Critical parse error: {str(e)}", None)
         ast = None
-
+        
     return ast

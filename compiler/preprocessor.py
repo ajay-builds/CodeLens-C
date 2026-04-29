@@ -7,13 +7,7 @@ import re
 
 
 def preprocess(source_code, error_collector):
-    """
-    Remove comments and preprocessor directives from C/C++ source code.
-    Preserves line numbers by replacing removed content with blank lines.
-
-    Returns:
-        str: Cleaned source code with comments and directives removed.
-    """
+    # Returns:str: Cleaned source code with comments and directives removed.
     lines = source_code.split('\n')
     cleaned_lines = list(lines)  # work on a copy
     messages = []

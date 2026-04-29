@@ -104,10 +104,10 @@ TYPE_KEYWORDS = {'int', 'float', 'double', 'char', 'void', 'short', 'long',
                  'string'}
 
 
-def _levenshtein(s1, s2):
+def _edit_distance(s1, s2):
     """Compute edit distance between two strings."""
     if len(s1) < len(s2):
-        return _levenshtein(s2, s1)
+        return _edit_distance(s2, s1)
     if len(s2) == 0:
         return len(s1)
     prev_row = range(len(s2) + 1)
@@ -132,7 +132,7 @@ def _suggest_type_keyword(token_value):
     best_dist = 999
     lower = token_value.lower()
     for kw in TYPE_KEYWORDS:
-        dist = _levenshtein(lower, kw)
+        dist = _edit_distance(lower, kw)
         if dist < best_dist:
             best_dist = dist
             best_match = kw
